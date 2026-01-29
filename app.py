@@ -1,61 +1,58 @@
 import streamlit as st
-import joblib
-import os
-from google import genai
-from dotenv import load_dotenv
+import requests
+import json
 
-# 1. Setup & Config
-st.set_page_config(page_title="Agent", page_icon="🚀")
-load_dotenv() # This looks for your API key in a .env file
+# Page config
+st.set_page_config(page_title="SmartHire AI Agent", page_icon="🚀", layout="centered")
 
-# 2. Load the "Brain" (The models you uploaded to the /models folder)
-@st.cache_resource # This keeps the model in memory so it's fast
-def load_models():
-    model = joblib.load('models/xgboost_model.pkl')
-    tfidf = joblib.load('models/tfidf_vectorizer.pkl')
-    return model, tfidf
+st.title("🚀 SmartHire AI: Resume Analyzer")
+st.subheader("Level up your resume with ML & GenAI")
 
-model, tfidf = load_models()
+# Sidebar info
+st.sidebar.header("About the Project")
+st.sidebar.info("""
+This project uses:
+1. **XGBoost** for Match Scoring.
+2. **FastAPI** for the Backend.
+3. **Gemini 2.0** for Resume Enhancement.
+4. **Streamlit** for the UI.
+""")
 
-# 3. Setup Gemini AI
-GEMINI_KEY = os.getenv("GEMINI_API_KEY")
-client = genai.Client(api_key=GEMINI_KEY)
+# User Input
+resume_text = st.text_area("Paste your Resume or Job Description details below:", height=250)
 
-# --- UI LAYOUT ---
-st.title("🚀 AI: Resume Analyzer")
-st.markdown("Developed with **XGBoost** and **Google Gemini 2.0**")
-
-resume_input = st.text_area("Paste your Resume Text here:", height=250, placeholder="Example: Python developer with experience in...")
-
-if st.button("Analyze Resume"):
-    if resume_input:
-        with st.spinner("Analyzing with ML & GenAI..."):
-            try:
-                # --- STEP 1: ML Scoring (XGBoost) ---
-                features = tfidf.transform([resume_input])
-                score = model.predict(features)[0]
-                # Keep score within 0-100 range
-                final_score = min(max(int(score), 0), 100)
-
-                # --- STEP 2: GenAI Improvement (Gemini) ---
-                prompt = f"""
-                You are a technical recruiter. Provide 2 concise, high-impact suggestions 
-                to improve this resume text based on industry standards:
-                {resume_input}
-                """
-                response = client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
-
-                # --- STEP 3: Display Results ---
-                st.success("Analysis Complete!")
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.metric(label="Match Score", value=f"{final_score}%")
-                
-                st.subheader("🤖 AI Suggestions")
-                st.info(response.text)
-
-            except Exception as e:
-                st.error(f"Something went wrong: {e}")
+if st.button("Run AI Analysis"):
+    if resume_text.strip() == "":
+        st.warning("Please enter some text to analyze.")
     else:
-        st.warning("Please paste some text first!")
+        with st.spinner("🤖 ML model is calculating score and GenAI is writing suggestions..."):
+            try:
+                # IMPORTANT: This URL is for your local Codespace testing.
+                # When you deploy to Hugging Face, this logic might change 
+                # to call the function directly.
+                backend_url = "http://localhost:8000/analyze"
+                payload = {"text": resume_text}
+                
+                response = requests.post(backend_url, json=payload)
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    
+                    # Display Match Score
+                    st.success("Analysis Complete!")
+                    score = result["match_score"]
+                    st.metric(label="Resume Match Score", value=f"{score}%")
+                    st.progress(score / 100)
+                    
+                    # Display AI Suggestions
+                    st.markdown("### 💡 AI-Powered Suggestions")
+                    st.write(result["ai_suggestions"])
+                    
+                else:
+                    st.error(f"Backend Error: {response.status_code}")
+            
+            except Exception as e:
+                st.error(f"Could not connect to FastAPI backend. Make sure it's running! Error: {e}")
+
+st.divider()
+st.caption("Developed for AI Engineer Portfolio | Host on GitHub")
