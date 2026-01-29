@@ -1,9 +1,9 @@
 import streamlit as st
 import requests
 
-st.set_page_config(page_title="SmartHire AI Agent", page_icon="🚀")
+st.set_page_config(page_title="Bread-Winner Agent", page_icon="🚀")
 
-st.title("🚀 SmartHire AI: Resume Analyzer")
+st.title("🚀 Bread-Winner: Resume Analyzer")
 st.markdown("Upload your resume text to get an AI-powered score and improvement tips.")
 
 resume_input = st.text_area("Paste your Resume Text here:", height=300)
